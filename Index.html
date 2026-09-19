@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inflation & Business Cycle Decision Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <style>
+    :root {
+      --primary: #1e88e5;
+      --bg: #f4f6f9;
+      --card-bg: #ffffff;
+      --text: #333333;
+      --border: #e0e0e0;
+    }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 15px;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    h1 {
+      text-align: center;
+      color: var(--primary);
+      margin-bottom: 20px;
+    }
+    .card {
+      background: var(--card-bg);
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    .card-title {
+      font-size: 1.2rem;
+      font-weight: bold;
+      margin-bottom: 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 15px;
+    }
+    @media (min-width: 600px) {
+      .grid { grid-template-columns: 1fr 1fr; }
+    }
+    .slider-group {
+      display: flex;
+      flex-direction: column;
+    }
+    .slider-label {
+      display: flex;
+      justify-content: space-between;
+      font-weight: 600;
+      margin-bottom: 5px;
+    }
+    input[type=range] {
+      width: 100%;
+      cursor: pointer;
+    }
+    .badge {
+      background: #e3f2fd;
+      color: var(--primary);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-weight: 600;
+      margin-top: 10px;
+    }
+    .guidance {
+      background: #f1f8e9;
+      border-left: 4px solid #7cb342;
+      padding: 10px 15px;
+      margin-top: 10px;
+      border-radius: 0 6px 6px 0;
+    }
+    .btn {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+    .btn:hover {
+      background: #1565c0;
+    }
+    #capture-area {
+      background: var(--bg);
+      padding: 10px;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container" id="capture-area">
+  <h1>Economic Decision Dashboard</h1>
+
+  <div class="card">
+    <div class="card-title">Input Panel</div>
+    <div class="grid">
+      <div class="slider-group">
+        <div class="slider-label">
+          <span>Inflation Rate (%)</span>
+          <span id="inf-val">2.5%</span>
+        </div>
+        <input type="range" id="inf-slider" min="0" max="12" step="0.1" value="2.5">
+      </div>
+
+      <div class="slider-group">
+        <div class="slider-label">
+          <span>GDP Growth Rate (%)</span>
+          <span id="gdp-val">3.0%</span>
+        </div>
+        <input type="range" id="gdp-slider" min="-10" max="10" step="0.1" value="3.0">
+      </div>
+
+      <div class="slider-group">
+        <div class="slider-label">
+          <span>Unemployment Rate (%)</span>
+          <span id="unemp-val">5.0%</span>
+        </div>
+        <input type="range" id="unemp-slider" min="2" max="15" step="0.1" value="5.0">
+      </div>
+
+      <div class="slider-group">
+        <div class="slider-label">
+          <span>Interest Rate (%)</span>
+          <span id="int-slider-val">4.5%</span>
+        </div>
+        <input type="range" id="int-slider" min="0" max="15" step="0.1" value="4.5">
+      </div>
+    </div>
+
+    <div class="badge" id="classification-result">
+      Current Phase: Healthy Expansion
+    </div>
+
+    <div class="guidance" id="recommendation-result">
+      Business Guidance: Strategy: Support capacity building; sustain inventory buildup; maintain steady pricing.
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">
+      <span>Visualization Panel</span>
+      <button class="btn" onclick="takeScreenshot()">Screenshot</button>
+    </div>
+    <canvas id="economicChart" height="200"></canvas>
+  </div>
+</div>
+
+<script>
+  // Historical data points
+  const years = ['2019', '2020', '2021', '2022', '2023', '2024', '2025', 'Current'];
+  const historicalInflation = [3.8, 6.6, 5.1, 6.7, 5.5, 5.1, 2.4];
+  const historicalGDP = [3.9, -5.8, 7.1, 7.2, 8.2, 6.5, 7.0];
+  const historicalUnemployment = [5.3, 8.0, 6.0, 7.3, 8.0, 8.0, 8.0];
+  const historicalInterest = [5.1, 4.0, 4.0, 5.5, 6.5, 6.5, 6.5];
+
+  const infSlider = document.getElementById('inf-slider');
+  const gdpSlider = document.getElementById('gdp-slider');
+  const unempSlider = document.getElementById('unemp-slider');
+  const intSlider = document.getElementById('int-slider');
+
+  const infVal = document.getElementById('inf-val');
+  const gdpVal = document.getElementById('gdp-val');
+  const unempVal = document.getElementById('unemp-val');
+  const intSliderVal = document.getElementById('int-slider-val');
+
+  const ctx = document.getElementById('economicChart').getContext('2d');
+  const economicChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: years,
+      datasets: [
+        {
+          label: 'Inflation Rate (%)',
+          data: [...historicalInflation, parseFloat(infSlider.value)],
+          borderColor: '#ff5252',
+          backgroundColor: '#ff5252',
+          tension: 0.2
+        },
+        {
+          label: 'GDP Growth Rate (%)',
+          data: [...historicalGDP, parseFloat(gdpSlider.value)],
+          borderColor: '#00e676',
+          backgroundColor: '#00e676',
+          tension: 0.2
+        },
+        {
+          label: 'Unemployment Rate (%)',
+          data: [...historicalUnemployment, parseFloat(unempSlider.value)],
+          borderColor: '#29b6f6',
+          backgroundColor: '#29b6f6',
+          tension: 0.2
+        },
+        {
+          label: 'Interest Rate (%)',
+          data: [...historicalInterest, parseFloat(intSlider.value)],
+          borderColor: '#ffee58',
+          backgroundColor: '#ffee58',
+          tension: 0.2
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'bottom' }
+      },
+      scales: {
+        y: {
+          beginAtZero: false,
+          grid: { color: '#e0e0e0' }
+        }
+      }
+    }
+  });
+
+  let isUpdating = false;
+
+  function updateDashboard(source) {
+    if (isUpdating) return;
+    isUpdating = true;
+
+    let inf = parseFloat(infSlider.value);
+    let gdp = parseFloat(gdpSlider.value);
+    let unemp = parseFloat(unempSlider.value);
+    let interest = parseFloat(intSlider.value);
+
+    // Apply economic logic depending on which slider changed
+    if (source === 'inflation') {
+      gdp = Math.max(-10, Math.min(10, 6.0 - (inf * 0.5)));
+      unemp = Math.max(2, Math.min(15, 10.0 - (inf * 0.8)));
+      interest = Math.max(0, Math.min(15, inf + 2.0));
+    } else if (source === 'gdp') {
+      unemp = Math.max(2, Math.min(15, 8.5 - (gdp * 0.6)));
+      inf = Math.max(0, Math.min(12, 1.5 + (gdp * 0.4)));
+      interest = Math.max(0, Math.min(15, 2.0 + (gdp * 0.5)));
+    } else if (source === 'unemployment') {
+      gdp = Math.max(-10, Math.min(10, 8.0 - (unemp * 0.7)));
+      inf = Math.max(0, Math.min(12, 8.0 - (unemp * 0.6)));
+      interest = Math.max(0, Math.min(15, 9.0 - (unemp * 0.7)));
+    } else if (source === 'interest') {
+      gdp = Math.max(-10, Math.min(10, 6.5 - (interest * 0.6)));
+      inf = Math.max(0, Math.min(12, 6.0 - (interest * 0.5)));
+      unemp = Math.max(2, Math.min(15, 3.5 + (interest * 0.5)));
+    }
+
+    infSlider.value = inf.toFixed(1);
+    gdpSlider.value = gdp.toFixed(1);
+    unempSlider.value = unemp.toFixed(1);
+    intSlider.value = interest.toFixed(1);
+
+    infVal.innerText = inf.toFixed(1) + '%';
+    gdpVal.innerText = gdp.toFixed(1) + '%';
+    unempVal.innerText = unemp.toFixed(1) + '%';
+    intSliderVal.innerText = interest.toFixed(1) + '%';
+
+    let phase = "";
+    let recommendation = "";
+
+    if (inf > 6 && gdp > 5) {
+      phase = "Expansion / Peak (Overheating)";
+      recommendation = "Strategy: Implement contractionary policies; tighten credit; postpone major capital investments.";
+    } else if (inf > 6 && gdp < 5) {
+      phase = "Cost-push / Near-Stagflation";
+      recommendation = "Strategy: Focus on cost containment; selective price pass-through; avoid expansion.";
+    } else if (inf < 2 && gdp < 2) {
+      phase = "Contraction (Recession)";
+      recommendation = "Strategy: Stimulate demand; ease labor costs; seek government incentives.";
+    } else {
+      phase = "Healthy Expansion";
+      recommendation = "Strategy: Support capacity building; sustain inventory buildup; maintain steady pricing.";
+    }
+
+    document.getElementById('classification-result').innerHTML = `<strong>Current Phase:</strong> ${phase}`;
+    document.getElementById('recommendation-result').innerHTML = `<strong>Business Guidance:</strong> ${recommendation}`;
+
+    economicChart.data.datasets[0].data[7] = inf;
+    economicChart.data.datasets[1].data[7] = gdp;
+    economicChart.data.datasets[2].data[7] = unemp;
+    economicChart.data.datasets[3].data[7] = interest;
+    economicChart.update();
+
+    isUpdating = false;
+  }
+
+  infSlider.addEventListener('input', () => updateDashboard('inflation'));
+  gdpSlider.addEventListener('input', () => updateDashboard('gdp'));
+  unempSlider.addEventListener('input', () => updateDashboard('unemployment'));
+  intSlider.addEventListener('input', () => updateDashboard('interest'));
+
+  function takeScreenshot() {
+    html2canvas(document.querySelector("#capture-area")).then(canvas => {
+      const link = document.createElement('a');
+      link.download = 'dashboard_screenshot.png';
+      link.href = canvas.toDataURL();
+      link.click();
+    });
+  }
+
+  updateDashboard('inflation');
+</script>
+
+</body>
+</html>
